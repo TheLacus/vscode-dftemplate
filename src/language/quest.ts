@@ -11,7 +11,7 @@ import { basename } from 'path';
 import { first } from '../extension';
 import { LanguageData } from './static/languageData';
 import { ParameterTypes } from './static/parameterTypes';
-import { QuestParseContext, QuestBlockKind, QuestResource, CategorizedQuestResource } from './common';
+import { QuestParseContext, QuestBlockKind, QuestResource, CategorizedQuestResource, PragmaWarning } from './common';
 import { Preamble } from './preamble';
 import { Qbn } from './qbn';
 import { Qrc } from './qrc';
@@ -40,6 +40,8 @@ export class Quest {
      * Ranges of comment blocks, composed of one or more consecutive lines.
      */
     public readonly comments: Range[] = [];
+
+    public readonly pragmas: PragmaWarning[] = [];
 
     public readonly version: number;
 
@@ -71,7 +73,11 @@ export class Quest {
 
             // Store comments
             if (/^\s*-/.test(line.text)) {
-                this.addComment(line);
+                if (/^\s*-#pragma/.test(line.text)) {
+                    this.parsePragma(line);
+                } else {
+                    this.addComment(line);
+                } 
                 continue;
             }
 
@@ -259,6 +265,33 @@ export class Quest {
         } else {
             this.comments.push(line.range);
         }
+    }
+    
+    /**
+     * Parses a pragma in the given line.
+     * @param line A line with a pragma directive.
+     */
+    private parsePragma(line: TextLine): void {
+        const result = /^\s*-#pragma\swarning\s([a-z]+)\s([0-9]+)/.exec(line.text);
+        if (result === null || result.length !== 3) {
+            return;
+        }
+
+        const startBlock = result[1] === 'disable';
+        if (!startBlock && result[1] !== 'restore') {
+            return;
+        }
+
+        const id = Number(result[2]);
+        if (isNaN(id)) {
+            return;
+        }
+
+        this.pragmas.push({
+            line: line.lineNumber,
+            startBlock: startBlock,
+            id: id
+        });
     }
 
     /**

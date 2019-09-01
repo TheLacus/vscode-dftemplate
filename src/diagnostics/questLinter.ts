@@ -34,7 +34,16 @@ export class QuestLinter {
             this.analyseQrc(quest),
             this.analyseQbn(quest)
         ]);
-        return preamble.concat(qrc, qbn);
+
+        const diagnostics = preamble.concat(qrc, qbn);
+        return quest.pragmas.length === 0 ? diagnostics : diagnostics.filter(diagnostic => {
+            for (let index = quest.pragmas.length; index-- > 0;) {
+                const pragma = quest.pragmas[index];
+                if (pragma.line < diagnostic.range.start.line && pragma.id === diagnostic.code) {
+                    return !pragma.startBlock;
+                }
+            }
+        });
     }
 
     private async analysePreamble(quest: Quest): Promise<Diagnostic[]> {

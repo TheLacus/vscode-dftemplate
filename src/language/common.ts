@@ -540,6 +540,28 @@ export class Message implements QuestResource {
     }
 }
 
+/**
+ * A pragma with the form `-#pragma warning disable/restore id`.
+ * `warning disable` hides a specific diagnostic until the corrispective `warning restore` or the end of file.
+ */
+export interface PragmaWarning {
+    
+    /**
+     * The line where the pragma is defined.
+     */
+    line: number;
+
+    /**
+     * If true this is a `warning disable`, otherwise is a `warning restore`.
+     */
+    startBlock: boolean;
+
+    /**
+     * A diagnostic id.
+     */
+    id: number;
+}
+
 export enum QuestBlockKind {
     Preamble,
     QRC,
