@@ -191,6 +191,21 @@
                         "DaggerfallUnity"
                     ],
                     "description": "A list of modules the project depends on, seeked from extension resources and a folder named 'Models' in the workspace root directory."
+                },
+                "dftemplate.updateQuestNameOnFileMove.enabled": {
+                    "type": "string",
+                    "default": "prompt",
+                    "enum": [
+                        "prompt",
+                        "always",
+                        "never"
+                    ],
+                    "enumDescriptions": [
+                        "Ask confirmation for every rename operation.",
+                        "Always update quest name without asking.",
+                        "Never update quest name."
+                    ],
+                    "description": "Automatically update quest name and references inside workspace when quest file is renamed."
                 }
             }
         }

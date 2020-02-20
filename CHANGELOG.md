@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Automatically update quest name and references inside workspace when quest file is renamed (`dftemplate.updateQuestNameOnFileMove.enabled`).
+
 ### Improved
 
 - Use Semantic Highlighting instead of decoration styling for conditions and actions that affect quest workflow, action and symbol parameters and symbols that don't follow standard syntax and can't benefit of syntax highlighting.

@@ -71,7 +71,8 @@ export async function activate(context: ExtensionContext) {
             context.subscriptions.push(makeDiagnosticCollection(context, data, quests));
         }
 
-        registerCommands(context, data, quests);     
+        registerCommands(context, data, quests);
+        context.subscriptions.push(updateQuestNameOnFileMove(quests));
     }).catch(e => vscode.window.showErrorMessage(`Initialization failed: ${e}`));
 }
 
@@ -333,4 +334,71 @@ function makeDiagnosticCollection(context: vscode.ExtensionContext, data: Langua
     }
 
     return diagnosticCollection;
+}
+
+/**
+ * Automatically update quest name and references when a quest file is renamed.
+ * @param quests Quests inside current workspace.
+ */
+function updateQuestNameOnFileMove(quests: Quests): vscode.Disposable {
+
+    const syncQuestName = async (file: { newUri: vscode.Uri, oldUri: vscode.Uri }, document: vscode.TextDocument) => {
+        const quest = quests.getIfQuest(document);
+        if (quest !== undefined) {
+            const oldName = path.basename(file.oldUri.toString(), '.txt');
+            const newName = path.basename(file.newUri.toString(), '.txt');
+            const questName = quest.preamble.questName;
+            if (questName !== undefined && questName.parameter.value === oldName) {
+
+                // Update quest name
+                let edit = new vscode.WorkspaceEdit();
+                edit.replace(file.newUri, questName.valueRange, newName);
+                vscode.workspace.applyEdit(edit);
+
+                // Update references
+                const references = await TemplateReferenceProvider.questReferences(quests, oldName, false);
+                if (references.length > 0) {
+                    edit = new vscode.WorkspaceEdit();
+
+                    for (const location of references) {
+                        edit.replace(location.uri, location.range, newName);
+                    }
+
+                    vscode.workspace.applyEdit(edit);
+                }
+            }
+        }
+    };
+
+    return vscode.workspace.onDidRenameFiles(async e => {
+        const enabled: string | undefined = getOptions().get('updateQuestNameOnFileMove.enabled');
+        if (enabled !== 'never' && e.files.length === 1) {
+            const file = e.files[0];
+            if (file.oldUri.scheme === 'file' && file.oldUri.path.endsWith('.txt') && file.newUri.path.endsWith('.txt')) {
+
+                // ignore tables and S000nnnn family quests
+                if (Quests.isTable(file.oldUri) || /\bS000[0-9]{4}.txt$/.test(file.oldUri.path)) {
+                    return;
+                }
+
+                const document = await vscode.workspace.openTextDocument(file.newUri);
+                if (document.languageId === TEMPLATE_LANGUAGE) {
+                    if (enabled === 'always') {
+                        syncQuestName(file, document);
+                    } else {
+                        const value = await vscode.window.showInformationMessage(
+                            'Rename quest and automatically update references inside workspace?',
+                            { modal: true }, 'Yes', 'No', 'Always', 'Never');
+                        if (value === 'Always' || value === 'Never') {
+                            getOptions().update('updateQuestNameOnFileMove.enabled', value.toLowerCase(), true);
+                        }
+
+                        if (value === 'Yes' || value === 'Always') {
+                            syncQuestName(file, document);
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
