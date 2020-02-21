@@ -154,6 +154,11 @@
                     ],
                     "description": "Format alignment for quest table entries."
                 },
+                "dftemplate.callHierarchy.enabled": {
+                    "type": "boolean",
+                    "default":true,
+                    "description": "Shows hierarchy of quest activations inside workspace."
+                },
                 "dftemplate.codeLens.enabled": {
                     "type": "boolean",
                     "default": false,
