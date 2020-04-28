@@ -13,6 +13,7 @@ import { LanguageData } from '../language/static/languageData';
 import { ParameterTypes } from '../language/static/parameterTypes';
 import { Quests } from '../language/quests';
 import { Quest } from '../language/quest';
+import { WORD_PATTERN } from '../extension';
 
 export class TemplateCompletionItemProvider implements vscode.CompletionItemProvider {
 
@@ -22,9 +23,13 @@ export class TemplateCompletionItemProvider implements vscode.CompletionItemProv
     }
 
     public async provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken): Promise<CompletionItem[] | undefined> {
+        const wordRange = document.getWordRangeAtPosition(position, WORD_PATTERN);
+        if (wordRange === undefined) {
+            return;
+        }
+
         const line = document.lineAt(position.line);
-        const text = line.text.substring(0, position.character - 2).trim();
-        const prefix = TemplateCompletionItemProvider.getPrefix(line.text, position.character);
+        const prefix = document.getText(wordRange); 
 
         if (Quests.isTable(document.uri)) {
             return TemplateCompletionItemProvider.tableCompletionItems(document, prefix);
@@ -37,7 +42,7 @@ export class TemplateCompletionItemProvider implements vscode.CompletionItemProv
         } else if (quest.qrc.range && quest.qrc.range.contains(position)) {
             return this.qrcCompletionItems(quest, position, line, prefix);
         } else if (quest.qbn.range && quest.qbn.range.contains(position)) {
-            return this.qbnCompletionItems(quest, line, text, prefix, token);
+            return this.qbnCompletionItems(quest, line, wordRange, prefix, token);
         }
     }
 
@@ -93,10 +98,10 @@ export class TemplateCompletionItemProvider implements vscode.CompletionItemProv
         return items;
     }
 
-    private async qbnCompletionItems(quest: Quest, line: vscode.TextLine, text: string, prefix: string, token: CancellationToken): Promise<CompletionItem[]> {
+    private async qbnCompletionItems(quest: Quest, line: vscode.TextLine, wordRange: vscode.Range, prefix: string, token: CancellationToken): Promise<CompletionItem[]> {
         const items: CompletionItem[] = [];
 
-        const param = this.findParamSignature(line, prefix, text);
+        const param = this.findParamSignature(line, wordRange, prefix);
         if (param) {
             // Inside an invocation: suggests values according to parameter type
             switch (param) {
@@ -248,7 +253,7 @@ export class TemplateCompletionItemProvider implements vscode.CompletionItemProv
         }
     }
 
-    private findParamSignature(line: vscode.TextLine, prefix: string, previousText: string): string | undefined {
+    private findParamSignature(line: vscode.TextLine, wordRange: vscode.Range, prefix: string): string | undefined {
         const match = line.text.match(/^\s*([a-zA-Z]+)\s+/);
         if (!match) {
             return;
@@ -270,17 +275,9 @@ export class TemplateCompletionItemProvider implements vscode.CompletionItemProv
         // Action/condition
         const actionResult = this.data.modules.findAction(line.text, match[1]);
         if (actionResult) {
-            return Modules.getParameterAtPosition(actionResult, previousText.split(' ').length);
+            const leftText = line.text.substring(0, wordRange.start.character);
+            return Modules.getParameterAtPosition(actionResult, leftText.trim().split(' ').length);
         }
-    }
-
-    private static getPrefix(text: string, position: number): string {
-        let prefix = text.substring(position - 1);
-        const i = prefix.indexOf(' ');
-        if (i !== -1) {
-            prefix = prefix.substring(0, i);
-        }
-        return prefix;
     }
 
     private static getCompletionItemKind(category: QuestResourceCategory): vscode.CompletionItemKind {

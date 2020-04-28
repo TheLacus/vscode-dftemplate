@@ -5,6 +5,7 @@
 ### Improved
 
 - Use Semantic Highlighting instead of decoration styling for conditions and actions that affect quest workflow, action and symbol parameters and symbols that don't follow standard syntax and can't benefit of syntax highlighting.
+- Minor improvements to Completion Proposals inside actions.
 
 ## 0.14.0
 

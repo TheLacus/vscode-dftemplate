@@ -1,0 +1,12 @@
+Quest: COMPLETION
+D
+
+QRC:
+
+Me
+
+QBN:
+
+_foo_ task:
+    when skill eti is at least 50
+    say
