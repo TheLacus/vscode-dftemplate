@@ -220,6 +220,8 @@ export class Symbol implements QuestResource {
  */
 export class Task implements QuestResource {
 
+    public static readonly entryPointName = 'entry point';
+
     /**
      * The actions block owned by this task.
      */
@@ -301,6 +303,16 @@ export class Task implements QuestResource {
         if (task) {
             return new Task(task.symbol, line, wordRange(line, task.symbol), task);
         }
+    }
+
+    public static makeEntryPoint(actions: Action[]) {
+        const TaskDefinition: parser.tasks.TaskDefinition = {
+            symbol: '',
+            type: parser.tasks.TaskType.Standard
+        };
+        const task = new Task(Task.entryPointName, actions[0].line, new Range(actions[0].blockRange.start, actions[actions.length - 1].blockRange.end), TaskDefinition);
+        task.actions.push(...actions);
+        return task;
     }
 }
 

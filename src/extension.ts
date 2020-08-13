@@ -23,6 +23,7 @@ import { TemplateOnTypingFormatter } from './providers/onTypeFormattingEditProvi
 import { TemplateCodeActionProvider } from './providers/codeActionProvider';
 import { TemplateFoldingRangeProvider } from './providers/foldingRangeProvider';
 import { TemplateDocumentSemanticTokensProvider, tokenTypesLegend } from './providers/documentSemanticTokensProvider';
+import { TemplateCallHierarchyProvider } from './providers/callHierarchyProvider';
 import { LanguageData } from './language/static/languageData';
 import { Quests } from './language/quests';
 import { QuestLinter } from './diagnostics/questLinter';
@@ -62,6 +63,7 @@ export async function activate(context: ExtensionContext) {
         context.subscriptions.push(vscode.languages.registerCodeActionsProvider(TEMPLATE_MODE, new TemplateCodeActionProvider(data, quests, context)));
         context.subscriptions.push(vscode.languages.registerFoldingRangeProvider(TEMPLATE_MODE, new TemplateFoldingRangeProvider(quests)));
         context.subscriptions.push(vscode.languages.registerDocumentSemanticTokensProvider(TEMPLATE_MODE, new TemplateDocumentSemanticTokensProvider(quests), tokenTypesLegend));
+        context.subscriptions.push(vscode.languages.registerCallHierarchyProvider(TEMPLATE_MODE, new TemplateCallHierarchyProvider(quests)));
 
         if (getOptions()['codeLens']['enabled']) {
             context.subscriptions.push(vscode.languages.registerCodeLensProvider(TEMPLATE_MODE, new TemplateCodeLensProvider(data.modules, quests)));

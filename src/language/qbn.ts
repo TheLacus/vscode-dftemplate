@@ -85,7 +85,10 @@ export class Qbn extends QuestBlock {
     /**
      * Iterates all tasks in this QBN block, including the *persist until* tasks.
      */
-    public *iterateTasks(): Iterable<Task> {
+    public *iterateTasks(includeEntryPoint: boolean = false): Iterable<Task> {
+        if (includeEntryPoint === true) {
+            yield Task.makeEntryPoint(this.entryPoint);
+        }
         yield* Qbn.iterateMapItems(this.tasks);
         yield* this.persistUntilTasks;
     }
