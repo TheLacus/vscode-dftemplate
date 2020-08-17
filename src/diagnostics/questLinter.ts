@@ -9,9 +9,8 @@ import * as parser from '../parser';
 import { Diagnostic } from "vscode";
 import { first, getOptions } from '../extension';
 import { wordRange } from '../parser';
-import { SymbolType } from '../language/static/common';
+import { SymbolType, QuestResourceCategory } from '../language/static/common';
 import { LanguageData } from '../language/static/languageData';
-import { Modules } from '../language/static/modules';
 import { ParameterTypes } from '../language/static/parameterTypes';
 import { Tables } from '../language/static/tables';
 import { QuestBlock, QuestBlockKind, Task } from '../language/common';
@@ -202,10 +201,8 @@ export class QuestLinter {
             }
 
             // Unused      
-            if (!this.taskIsUsed(quest, name, firstTask, this.data.modules)) {
-                const definition = firstTask.definition;
-                const name = definition.type === parser.tasks.TaskType.GlobalVarLink ? definition.symbol + ' from ' + definition.globalVarName : definition.symbol;
-                diagnostics.push(Warnings.unusedDeclarationTask(firstTask.range, name));
+            if (!this.taskIsUnused(quest, firstTask, diagnostics) && this.taskIsEmptyAndNeverRead(quest, firstTask)) {
+                diagnostics.push(Hints.taskIsEmptyAndNeverRead(firstTask.range, name));
             }
 
             // Naming convention violation
@@ -315,24 +312,57 @@ export class QuestLinter {
         return false;
     }
 
-    private taskIsUsed(context: Quest, taskName: string, task: Task, modules: Modules): boolean {
-        // Started by trigger
-        if (task.hasAnyCondition(modules)) {
-            return true;
-        }
-
-        // Started by clock
-        for (const symbol of context.qbn.symbols) {
-            if (symbol[0] === taskName) {
-                return true;
+    private taskIsUnused(quest: Quest, task: Task, diagnostics: Diagnostic[]): boolean {
+        // Triggered by condition
+        for (const action of task.actions) {
+            if (action.info.category === QuestResourceCategory.Condition) {
+                return false;
             }
         }
 
-        // Referenced in other tasks
-        if (findParameter(context, parameter => parameter.type === ParameterTypes.task && parameter.value === taskName, false, true)) {
+        // Triggered by clock
+        for (const [name, _] of quest.qbn.symbols) {
+            if (name === task.name) {
+                return false;
+            }
+        }
+
+        let isUsedByWhenCondition = false;
+
+        const taskRange = task.blockRange;
+        for (const action of quest.qbn.iterateActions()) {
+            if (!taskRange.contains(action.range) && action.signature.find(x => x.value === task.name)) {
+                // Assigned by action
+                if (!action.info.isWhenTask) {
+                    return false;
+                } else {
+                    isUsedByWhenCondition = true;
+                }
+            }            
+        }
+
+        if (isUsedByWhenCondition === true) {
+            diagnostics.push(Warnings.taskIsNeverAssigned(task.range, task.name));
+            return true;
+        } else if (task.definition.type !== parser.tasks.TaskType.GlobalVarLink) {
+            diagnostics.push(Warnings.unusedDeclarationTask(task.range, task.name));
             return true;
         }
 
         return false;
+    }
+
+    private taskIsEmptyAndNeverRead(quest: Quest, task: Task): boolean {
+        if (task.definition.type === parser.tasks.TaskType.GlobalVarLink || task.actions.length > 0) {
+            return false;
+        }
+
+        for (const action of quest.qbn.iterateActions()) {
+            if (action.info.isWhenTask && action.signature.find(x => x.value === task.name)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

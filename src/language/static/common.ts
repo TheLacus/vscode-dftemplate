@@ -196,6 +196,10 @@ export interface ActionDetails {
  */
 export class ActionInfo {
 
+    public get isWhenTask(): boolean {
+        return this.details.sourceName === 'WhenTask';
+    }
+
     public constructor(
 
         /**

@@ -282,6 +282,19 @@ export class TemplateCodeActionProvider implements vscode.CodeActionProvider {
                 case DiagnosticCode.ChangeSetVarToStartTask:
                     actions.push(TemplateCodeActionProvider.changeText(document, diagnostic.range, 'setvar', 'start task'));
                     break;
+                case DiagnosticCode.TaskIsEmptyAndNeverRead:
+                    const resource = quest.getResource(diagnostic.range.start, true);
+                    if (resource !== undefined && resource.kind === 'task') {
+                        action = new CodeAction('Remove unnecessary task', CodeActionKind.QuickFix);
+                        action.diagnostics = [diagnostic];
+                        action.edit = new WorkspaceEdit();
+                        const metadata = { label: 'Remove unnecessary task', needsConfirmation: true };
+                        for (const reference of TemplateReferenceProvider.taskReferences(quest, resource.value, true)) {
+                            action.edit.delete(document.uri, document.lineAt(reference.range.start.line).rangeIncludingLineBreak, metadata);
+                        }
+                        actions.push(action);
+                    }
+                    break;
             }
         }
 

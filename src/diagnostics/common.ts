@@ -40,7 +40,8 @@ export enum DiagnosticCode {
     OrderMessages,
     ConvertTaskToVariable,
     ChangeStartTastToSetVar,
-    ChangeSetVarToStartTask
+    ChangeSetVarToStartTask,
+    TaskIsEmptyAndNeverRead,
 }
 
 export const Errors = {
@@ -95,6 +96,8 @@ export const Warnings = {
         makeDiagnostic(range, DiagnosticCode.UnusedDeclarationSymbol, name + ' is declared but never used.', DiagnosticSeverity.Warning, undefined, [DiagnosticTag.Unnecessary]),
     unusedDeclarationTask: (range: Range, name: string) =>
         makeDiagnostic(range, DiagnosticCode.UnusedDeclarationTask, name + ' is declared but never used.', DiagnosticSeverity.Warning, undefined, [DiagnosticTag.Unnecessary]),
+    taskIsNeverAssigned: (range: Range, name: string) =>
+        makeDiagnostic(range, DiagnosticCode.GenericWarning, `${name} is never assigned to, and will always be unset.`, DiagnosticSeverity.Warning, undefined, [DiagnosticTag.Unnecessary]),
     unstartedClock: (range: Range, name: string) =>
         makeDiagnostic(range, DiagnosticCode.UnusedDeclarationSymbol, name + ' is declared but never starts.', DiagnosticSeverity.Warning, undefined, [DiagnosticTag.Unnecessary]),
     unlinkedClock: (range: Range, name: string) =>
@@ -123,7 +126,9 @@ export const Hints = {
     changeStartTaskToSetVar: (range: Range) =>
         makeDiagnostic(range, DiagnosticCode.ChangeStartTastToSetVar, 'Variable can be activated with setvar.', DiagnosticSeverity.Hint),
     changeSetVarToStartTask: (range: Range) =>
-        makeDiagnostic(range, DiagnosticCode.ChangeSetVarToStartTask, 'Task can be activated with start task.', DiagnosticSeverity.Hint)
+        makeDiagnostic(range, DiagnosticCode.ChangeSetVarToStartTask, 'Task can be activated with start task.', DiagnosticSeverity.Hint),
+    taskIsEmptyAndNeverRead: (range: Range, name: string) =>
+        makeDiagnostic(range, DiagnosticCode.TaskIsEmptyAndNeverRead, `${name} is assigned but its value is never used and its action list is empty.`, DiagnosticSeverity.Hint, undefined, [DiagnosticTag.Unnecessary])
 };
 
 /**

@@ -1,5 +1,12 @@
 # Change Log
 
+## Unreleased
+
+### Added
+
+- Diagnostic _'task' is never assigned to, and will always be unset._ with severity warning.
+- Diagnostic _'task' is assigned but its value is never used and its action list is empty._ with severity hint.
+
 ## 0.15.0
 
 ### Added

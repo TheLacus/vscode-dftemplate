@@ -9,6 +9,7 @@ import { TextLine, Range, MarkdownString, Position } from 'vscode';
 import { EOL } from 'os';
 import { basename } from 'path';
 import { first } from '../extension';
+import { SymbolType } from './static/common';
 import { LanguageData } from './static/languageData';
 import { ParameterTypes } from './static/parameterTypes';
 import { QuestParseContext, QuestBlockKind, QuestResource, CategorizedQuestResource } from './common';
@@ -126,7 +127,7 @@ export class Quest {
      * @param position A position inside this quest.
      * @returns A resource or the name of a static item.
      */
-    public getResource(position: Position): CategorizedQuestResource | undefined {
+    public getResource(position: Position, getTaskIfClock: boolean = false): CategorizedQuestResource | undefined {
 
         const range = this.document.getWordRangeAtPosition(position);
         if (range === undefined) {
@@ -178,7 +179,9 @@ export class Quest {
 
             for (const symbol of this.qbn.iterateSymbols()) {
                 if (symbol.name === word) {
-                    return { kind: 'symbol', value: symbol };
+                    if (getTaskIfClock !== true || symbol.type !== SymbolType.Clock) {
+                        return { kind: 'symbol', value: symbol };
+                    }
                 } else if (symbol.type === word) {
                     return { kind: 'type', value: symbol.type };
                 }
