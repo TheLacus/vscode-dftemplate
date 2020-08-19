@@ -7,7 +7,7 @@
 import * as parser from '../parser';
 import { ReferenceProvider, TextDocument, Position, Location, CancellationToken, Range } from 'vscode';
 import { Quest } from '../language/quest';
-import { Symbol, Message, Task } from '../language/common';
+import { Symbol, Message, Task, Parameter } from '../language/common';
 import { SymbolType, ActionInfo } from '../language/static/common';
 import { ParameterTypes } from '../language/static/parameterTypes';
 import { wordRange } from '../parser';
@@ -112,11 +112,7 @@ export class TemplateReferenceProvider implements ReferenceProvider {
 
         // Actions
         const baseSymbol = parser.symbols.getBaseSymbol(symbol.name);
-        for (const action of quest.qbn.iterateActions()) {
-            if (action.signature.find(x => x.value === baseSymbol)) {
-                locations.push(quest.getLocation(wordRange(action.line, baseSymbol)));
-            }
-        }
+        TemplateReferenceProvider.checkActionParameters(quest, locations, x => x.value === baseSymbol);
 
         // Clock task
         const task = quest.qbn.getTask(symbol.name);
@@ -141,13 +137,7 @@ export class TemplateReferenceProvider implements ReferenceProvider {
         }
 
         // Actions
-        for (const action of quest.qbn.iterateActions()) {
-            for (const parameter of action.signature) {
-                if (parameter.type === ParameterTypes.task && parameter.value === task.definition.symbol) {
-                    locations.push(quest.getLocation(wordRange(action.line, parameter.value)));
-                }
-            }
-        }
+        TemplateReferenceProvider.checkActionParameters(quest, locations, x => x.type === ParameterTypes.task && x.value === task.definition.symbol);
 
         return locations;
     }
@@ -244,5 +234,15 @@ export class TemplateReferenceProvider implements ReferenceProvider {
         }
 
         return locations;
+    }
+
+    private static checkActionParameters(quest: Quest, locations: Location[], filter: (parameter: Parameter) => boolean): void {
+        for (const action of quest.qbn.iterateActions()) {
+            for (let index = 0; index < action.signature.length; index++) {
+                if (filter(action.signature[index]) === true) {
+                    locations.push(quest.getLocation(action.getRange(index)));
+                }
+            }
+        }
     }
 }

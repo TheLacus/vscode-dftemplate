@@ -1,5 +1,11 @@
 # Change Log
 
+## Unreleased
+
+### Fixed
+
+- Fixed find references and word-highlight features when a symbol is repeated on the same line (i.e. `pick one of _symbol_ _symbol_`).
+
 ## 0.15.0
 
 ### Added
