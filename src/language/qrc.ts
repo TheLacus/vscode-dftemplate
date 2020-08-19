@@ -7,7 +7,8 @@
 import * as parser from '../parser';
 import { TextLine, Range, Position } from 'vscode';
 import { Tables } from './static/tables';
-import { QuestParseContext, QuestBlock, QuestBlockKind, Message, ContextMacro } from './common';
+import { Message, ContextMacro } from './common';
+import { QuestBlock, QuestBlockKind, QuestParseContext } from "./questBlock";
 
 /**
  * The quest block that holds text messages used by QBN resources.
@@ -56,22 +57,26 @@ export class Qrc extends QuestBlock {
     
     /**
      * Gets a message this QRC block.
-     * @param arg A numeric id, text alias or range.
+     * @param name A numeric id or text alias.
      * @param tables Imported language tables.
      */
-    public getMessage(arg: string | Range, tables: Tables): Message | undefined {
-        if (arg instanceof Range) {
-            return this.messages.find(x => x.range.isEqual(arg));
-        }
-
-        let id: number | undefined = Number(arg);
+    public getMessage(name: string, tables: Tables): Message | undefined {
+        let id: number | undefined = Number(name);
         if (isNaN(id)) {
-            id = tables.staticMessagesTable.messages.get(arg);
+            id = tables.staticMessagesTable.messages.get(name);
         }
 
         if (id) {
             return this.messages.find(x => x.id === id);
         }
+    }
+
+    /**
+     * Gets a message from its range.
+     * @param range The range of a message.
+     */
+    public getMessageFrom(range: Range): Message | undefined {
+        return Qrc.getResourceFrom(this.messages, range);
     }
 
     /**

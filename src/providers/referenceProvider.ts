@@ -66,13 +66,13 @@ export class TemplateReferenceProvider implements ReferenceProvider {
             for (const parameter of action.signature) {
                 if (parameter.type === ParameterTypes.message || parameter.type === ParameterTypes.messageID) {
                     if (Number(parameter.value) === message.id) {
-                        locations.push(quest.getLocation(wordRange(action.line, parameter.value)));
+                        locations.push(quest.getLocation(action.getRange(parameter)));
                     }
                 }
 
                 if (parameter.type === ParameterTypes.message || parameter.type === ParameterTypes.messageName) {
                     if (parameter.value === message.alias) {
-                        locations.push(quest.getLocation(wordRange(action.line, parameter.value)));
+                        locations.push(quest.getLocation(action.getRange(parameter)));
                     }
                 }
             }
@@ -113,8 +113,10 @@ export class TemplateReferenceProvider implements ReferenceProvider {
         // Actions
         const baseSymbol = parser.symbols.getBaseSymbol(symbol.name);
         for (const action of quest.qbn.iterateActions()) {
-            if (action.signature.find(x => x.value === baseSymbol)) {
-                locations.push(quest.getLocation(wordRange(action.line, baseSymbol)));
+            for (const parameter of action.signature) {
+                if (parameter.value === baseSymbol) {
+                    locations.push(quest.getLocation(action.getRange(parameter)));
+                }
             }
         }
 
@@ -144,7 +146,7 @@ export class TemplateReferenceProvider implements ReferenceProvider {
         for (const action of quest.qbn.iterateActions()) {
             for (const parameter of action.signature) {
                 if (parameter.type === ParameterTypes.task && parameter.value === task.definition.symbol) {
-                    locations.push(quest.getLocation(wordRange(action.line, parameter.value)));
+                    locations.push(quest.getLocation(action.getRange(parameter)));
                 }
             }
         }
@@ -217,11 +219,11 @@ export class TemplateReferenceProvider implements ReferenceProvider {
                 for (const parameter of action.signature) {
                     if (parameter.type === ParameterTypes.questName) {
                         if (parameter.value === questNameOrId) {
-                            locations.push(quest.getLocation(wordRange(action.line, parameter.value)));
+                            locations.push(quest.getLocation(action.getRange(parameter)));
                         }
                     } else if (parameter.type === ParameterTypes.questID) {
                         if (Quest.indexToName(parameter.value) === questNameOrId) {
-                            locations.push(quest.getLocation(wordRange(action.line, parameter.value)));
+                            locations.push(quest.getLocation(action.getRange(parameter)));
                         }
                     }
                 }

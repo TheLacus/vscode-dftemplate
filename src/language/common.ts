@@ -5,12 +5,11 @@
 'use strict';
 
 import * as parser from '../parser';
-import { TextDocument, TextLine, Range } from "vscode";
+import { TextLine, Range } from "vscode";
 import { tasks, wordRange } from "../parser";
 import { QuestResourceCategory, SymbolType, ActionInfo } from "./static/common";
 import { Modules } from "./static/modules";
 import { Language } from "./static/language";
-import { LanguageData } from './static/languageData';
 import { EOL } from 'os';
 import { StaticData } from './static/staticData';
 import { Tables } from './static/tables';
@@ -53,28 +52,95 @@ export interface QuestResource {
 }
 
 /**
- * A parameter in a symbol or action signature.
+ * A parameter in a single-line resource signature.
  */
 export interface Parameter {
-    type: string;
-    value: string;
+    
+    /**
+     * One of the `ParameterTypes`, such as `${_symbol_}`,
+     * or a fixed part of the invocation (like `clear` in `clear _task_`).
+     */
+    readonly type: string;
+
+    /**
+     * The value of this parameter.
+     */
+    readonly value: string;
+
+    /**
+     * The index of the first character inside the parsed line.
+     */
+    readonly charIndex: number;
+}
+
+/**
+ * A single-line resource with a list of parameters.
+ */
+export abstract class SingleLineQuestResource implements QuestResource {
+
+    /**
+     * The range of the symbol inside the line.
+     */
+    public readonly abstract range: Range;
+    
+    /**
+     * The range of the line where the resource is defined, without leading or trailing spaces.
+     */
+    public readonly blockRange: Range;
+
+    /**
+     * Parameters used for the invocation of this resource.
+     * Undefined if the parameters aren't recognised.
+     */
+    public readonly abstract signature: ReadonlyArray<Parameter> | undefined;
+
+    protected constructor(line: TextLine) {
+        this.blockRange = parser.trimRange(line);
+    }
+
+    /**
+     * Gets the range for a single parameter inside the range of this resource.
+     * @param parameter One of the parameters of this resource.
+     */
+    public getRange(parameter: Parameter): Range {
+        return this.blockRange.with(
+            this.blockRange.start.with(undefined, parameter.charIndex),
+            this.blockRange.end.with(undefined, parameter.charIndex + parameter.value.length)
+        );
+    }
+
+    /**
+     * Gets a parameter from its range.
+     * @param range The range of a parameter.
+     */
+    public getParameterFrom(range: Range): Parameter | undefined {
+        if (this.signature !== undefined) {
+            for (const parameter of this.signature) {
+                if (this.getRange(parameter).isEqual(range)) {
+                    return parameter;
+                }
+            }
+        }
+    }
 }
 
 /**
  * A directive inside the quest preamble.
  */
-export class Directive implements QuestResource {
-
-    public get blockRange(): Range {
-        return this.line.range;
-    }
+export class Directive extends SingleLineQuestResource {
 
     /**
      * The range of the directive value.
+     * This is a convenience over `getRange()` with the only parameter.
      */
     public get valueRange(): Range {
-        return wordRange(this.line, this.parameter.value);
+        return this.getRange(this.parameter);
     }
+
+    /**
+     * The single parameter of the directive, for example `name` in `Quest: name`.
+     */
+    public readonly signature: ReadonlyArray<Parameter>;
 
     private constructor(
 
@@ -85,6 +151,7 @@ export class Directive implements QuestResource {
 
         /**
          * The single parameter of the directive, for example `name` in `Quest: name`.
+         * This is the same as `signature[0]`.
          */
         public readonly parameter: Parameter,
 
@@ -96,8 +163,10 @@ export class Directive implements QuestResource {
         /**
          * The line where the directive is defined.
          */
-        public readonly line: TextLine
+        line: TextLine
     ) {
+        super(line);
+        this.signature = [parameter];
     }
 
     /**
@@ -114,7 +183,8 @@ export class Directive implements QuestResource {
                 if (match) {
                     const parameter = {
                         type: `\${${match[1]}}`,
-                        value: split[1].trim()
+                        value: split[1].trim(),
+                        charIndex: line.text.indexOf(split[1])
                     };
                     return new Directive(split[0].trim(), parameter, wordRange(line, split[0]), line);
                 }
@@ -126,22 +196,7 @@ export class Directive implements QuestResource {
 /**
  * A symbol used by resources and tasks, and for text replacement inside messages.
  */
-export class Symbol implements QuestResource {
-
-    /**
-     * The string that allows to reference this symbol, declared with the definition.
-     * It often includes a prefix and suffix: `_symbol_`.
-     */
-    public get name(): string {
-        return this.line.text.trim().split(' ')[1];
-    }
-
-    /**
-     * The range of the line where the symbol is defined.
-     */
-    public get blockRange() {
-        return this.line.range;
-    }
+export class Symbol extends SingleLineQuestResource {
 
     private constructor(
 
@@ -149,6 +204,12 @@ export class Symbol implements QuestResource {
          * What kind of resource is linked to this symbol.
          */
         public readonly type: SymbolType,
+
+        /**
+         * The string that allows to reference this symbol, declared with the definition.
+         * It often includes a prefix and suffix: `_symbol_`.
+         */
+        public readonly name: string,
 
         /**
          * The range of the symbol.
@@ -163,14 +224,9 @@ export class Symbol implements QuestResource {
         /**
          * Parameters provided with the symbol definition.
          */
-        public readonly signature: Parameter[] | undefined) {
-    }
-
-    public getParameterRange(parameter: Parameter): Range | undefined {
-        const index = this.line.text.search(new RegExp(`\\b${parameter.value}\\b`));
-        if (index !== -1) {
-            return new Range(this.line.range.start.line, index, this.line.range.start.line, index + parameter.value.length);
-        }
+        public readonly signature: ReadonlyArray<Parameter> | undefined) {
+        
+        super(line);
     }
 
     /**
@@ -179,38 +235,42 @@ export class Symbol implements QuestResource {
      * @returns A `Symbol` instance if parse operation was successful, `undefined` otherwise.
      */
     public static parse(line: TextLine, language: Language): Symbol | undefined {
-        const name = parser.symbols.parseSymbol(line.text);
-        if (name) {
-            const text = line.text.trim();
-            const type = text.substring(0, text.indexOf(' '));
-            const signature = Symbol.parseSignature(type, text, language);
-            return new Symbol(type as SymbolType, wordRange(line, name), line, signature);
+        const results = parser.symbols.parseSymbol(line.text);
+        if (results !== undefined) {
+            const signature = Symbol.parseSignature(results.type, line.text, language);
+            return new Symbol(results.type as SymbolType, results.name, wordRange(line, results.name), line, signature);
         }
     }
 
     /**
      * Matches parameters for the given symbol definition.
      * @param type The type of the symbol.
-     * @param text The entire symbol definition line.
+     * @param line The symbol definition line.
      * @returns An array of parameters, which can be empty, if parse operation was successful,
      * `undefined` otherwise.
      */
-    private static parseSignature(type: string, text: string, language: Language): Parameter[] | undefined {
+    private static parseSignature(type: string, text: string, language: Language): ReadonlyArray<Parameter> | undefined {
         const definition = language.findDefinition(type, text);
-        if (definition) {
-            if (definition.matches && definition.matches.length > 0) {
-                return definition.matches.reduce<Parameter[]>((parameters, word) => {
-                    const match = text.match(word.regex);
-                    if (match) {
-                        parameters.push({ type: word.signature, value: match[1] });
-                    }
-
-                    return parameters;
-                }, []);
-            }
-
-            return [];
+        if (definition === undefined) {
+            return undefined;
         }
+
+        if (definition.matches !== undefined) {
+            return definition.matches.reduce<Parameter[]>((parameters, word) => {
+                const match = text.match(word.regex);
+                if (match !== null && match.index !== undefined) {
+                    parameters.push({
+                        type: word.signature,
+                        value: match[1],
+                        charIndex: text.indexOf(match[1], match.index)
+                    });
+                }
+
+                return parameters;
+            }, []);
+        }
+
+        return [];
     }
 }
 
@@ -262,7 +322,7 @@ export class Task implements QuestResource {
         /**
          * Informations provided with the task definition, such as symbol and type.
          */
-        public readonly definition: tasks.TaskDefinition) {
+        public readonly definition: tasks.TaskParseResult) {
     }
 
     /**
@@ -307,60 +367,72 @@ export class Task implements QuestResource {
 /**
  * An action that belongs to a task and perform a specific function when task is active and conditions are met.
  */
-export class Action implements QuestResource {
-    public line: TextLine;
-    public signature: Parameter[];
+export class Action extends SingleLineQuestResource {
+    
+    private _range: Range | undefined;
+
+    /**
+     * The line where this action is invoked.
+     */
+    public readonly line: TextLine;
+    
+    /**
+     * All words inside this action. For example `start task _task_` is split into `[start, task, _task_]`.
+     */
+    public readonly signature: ReadonlyArray<Parameter>;
+    
+    /**
+     * Informations on the source action from modules.
+     */
     public readonly info: ActionInfo;
 
     /**
      * The range of the first word that is not a parameter.
      */
     public get range(): Range {
-        return this.getRange(Math.max(this.signature.findIndex(x => !x.type.startsWith('$')), 0));
-    }
-
-    /**
-     * The range of the entire action.
-     */
-    public get blockRange(): Range {
-        return this.getRange();
+        return this._range ?? (this._range = this.getRange(Math.max(this.signature.findIndex(x => !x.type.startsWith('$')), 0)));
     }
 
     private constructor(line: TextLine, info: ActionInfo) {
 
-        function doParams(signatureItems: string[], lineItems: string[]): string[] {
-            if (signatureItems[signatureItems.length - 1].indexOf('${...') !== -1) {
-                const last = signatureItems[signatureItems.length - 1].replace('${...', '${');
-                signatureItems[signatureItems.length - 1] = last;
-                if (lineItems.length > signatureItems.length) {
-                    signatureItems = signatureItems.concat(Array(lineItems.length - signatureItems.length).fill(last));
-                }
-            }
+        super(line);
+        this.info = info;
+        this.line = line;
 
-            return signatureItems;
+        const words = Action.parseActionWords(line.text);
+        const types = info.getSignature().replace(/\${\d:/g, '${').split(' ');
+
+        if (types[types.length - 1].startsWith('${...')) {
+            const paramsItem = types[types.length - 1].replace('${...', '${');
+            types[types.length - 1] = paramsItem;
+            while (types.length < words.length) {
+                types.push(paramsItem);
+            }
         }
 
-        const values = (this.line = line).text.trim().split(' ');
-        const types = doParams(info.getSignature().replace(/\${\d:/g, '${').split(' '), values);
+        const signature: Parameter[] = [];
+        for (let index = 0; index < words.length; index++) {
+            const word = words[index];
+            signature.push({
+                value: word.value,
+                charIndex: word.charIndex,
+                type: types[index]
+            });
+        }
 
-        this.signature = values.map((value, index) => {
-            return { type: types[index], value: value };
-        });
-
-        this.info = info;
+        this.signature = signature;
     }
 
     /**
      * Gets the range of this action or one of its parameters.
-     * @param index The index of a parameter.
+     * @param indexOrParameter The index of a parameter or parameter itself.
      */
-    public getRange(index?: number): Range {
-        if (index !== undefined && this.signature.length > index) {
-            const wordPosition = parser.findWordPosition(this.line.text, index);
-            return new Range(this.line.lineNumber, wordPosition, this.line.lineNumber, wordPosition + this.signature[index].value.length);
+    public getRange(indexOrParameter: number | Parameter): Range {
+        if (typeof (indexOrParameter) === 'number') {
+            indexOrParameter = this.signature[indexOrParameter];
         }
 
-        return parser.trimRange(this.line);
+        return super.getRange(indexOrParameter);
     }
 
     /**
@@ -411,6 +483,40 @@ export class Action implements QuestResource {
         if (info) {
             return new Action(line, info);
         }
+    }
+
+    /**
+     * Retrieves all words separated by spaces inside a text line.
+     * @param text The full text of a line.
+     */
+    private static parseActionWords(text: string) {
+
+        const words = [];
+
+        let startIndex = 0;
+        let insideWord = false;
+
+        for (let currentIndex = 0; currentIndex <= text.length; currentIndex++) {
+            const char = text[currentIndex];
+
+            if (char === ' ' || currentIndex === text.length) {
+                if (insideWord === true) {
+                    insideWord = false;
+                    words.push({
+                        value: text.substring(startIndex, currentIndex),
+                        charIndex: startIndex
+                    });
+                }
+
+            } else {
+                if (insideWord === false) {
+                    insideWord = true;
+                    startIndex = currentIndex;
+                }
+            }
+        }
+
+        return words;
     }
 }
 
@@ -528,83 +634,14 @@ export class Message implements QuestResource {
      * @returns A `Message` instance if parse operation was successful, `undefined` otherwise.
      */
     public static parse(line: TextLine): Message | undefined {
-        const id = parser.messages.parseMessage(line.text);
-        if (id) {
-            return new Message(id, wordRange(line, String(id)));
+        const result = parser.messages.parseMessage(line.text);
+        if (result !== undefined) {
+            return new Message(
+                Number(result.id),
+                wordRange(line, result.id),
+                result.alias,
+                result.alias !== undefined ? wordRange(line, result.alias) : undefined
+            );
         }
-
-        const data = parser.messages.parseStaticMessage(line.text);
-        if (data) {
-            return new Message(data.id, wordRange(line, String(data.id)), data.name, wordRange(line, data.name));
-        }
-    }
-}
-
-export enum QuestBlockKind {
-    Preamble,
-    QRC,
-    QBN
-}
-
-export interface QuestParseContext {
-    data: LanguageData;
-    document: TextDocument;
-    block: QuestBlock;
-    blockStart: number;
-    currentMessageBlock?: parser.messages.MessageBlock;
-    currentActionsBlock?: Action[];
-}
-
-/**
- * A block of a quest.
- */
-export abstract class QuestBlock {
-
-    private _range: Range | undefined;
-
-    /**
-     * Which block is this?
-     */
-    public abstract get kind(): QuestBlockKind;
-
-    /**
-     * Lines which can't be parsed as any known quest object.
-     */
-    public readonly failedParse: TextLine[] = [];
-
-    /**
-     * True if this block has been found and parsed. Any line for which parse 
-     * operation was unsuccessful can be retrieved from `failedParse`.
-     */
-    public get found(): boolean {
-        return this._range !== undefined;
-    }
-
-    /**
-     * The range of the entire block.
-     */
-    public get range(): Range | undefined {
-        return this._range;
-    }
-
-    /**
-     * Parses a line of a document.
-     * @param line The line to parse.
-     * @param context Data for the current parse operation.
-     */
-    public abstract parse(line: TextLine, context: QuestParseContext): void;
-
-    /**
-     * Sets the range of this block in the parsed document.
-     * @param document The document where this block is found.
-     * @param start The first line number of this block.
-     * @param end The last line number of this block.
-     */
-    public setRange(document: TextDocument, start: number, end: number) {
-        if (this._range !== undefined) {
-            throw new Error('Quest block range is already set!');
-        }
-
-        this._range = document.validateRange(new Range(start, 0, end, Infinity));
     }
 }

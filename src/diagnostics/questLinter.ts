@@ -14,7 +14,8 @@ import { LanguageData } from '../language/static/languageData';
 import { Modules } from '../language/static/modules';
 import { ParameterTypes } from '../language/static/parameterTypes';
 import { Tables } from '../language/static/tables';
-import { QuestBlock, QuestBlockKind, Task } from '../language/common';
+import { Task } from '../language/common';
+import { QuestBlock, QuestBlockKind } from "../language/questBlock";
 import { Quest } from '../language/quest';
 import { Quests } from '../language/quests';
 import { Errors, findParameter, Hints, Warnings, Informations } from './common';
@@ -41,7 +42,7 @@ export class QuestLinter {
         const diagnostics: vscode.Diagnostic[] = [];
 
         for (const directive of quest.preamble.directives) {
-            diagnostics.push(...this.signatureLinter.analyseDirective(quest, directive));
+            diagnostics.push(...this.signatureLinter.analyseSignature(quest, directive));
 
             if (!quest.document.isUntitled && !directive.valueRange.isEmpty &&
                 directive.name === 'Quest' && quest.name !== directive.parameter.value) {
@@ -143,8 +144,7 @@ export class QuestLinter {
 
             // Invalid signature or parameters
             if (!firstSymbol.signature) {
-                const lineRange = parser.trimRange(firstSymbol.line);
-                diagnostics.push(Errors.invalidDefinition(lineRange, name, firstSymbol.type));
+                diagnostics.push(Errors.invalidDefinition(firstSymbol.blockRange, name, firstSymbol.type));
             }
 
             // Duplicated definition
@@ -155,13 +155,13 @@ export class QuestLinter {
                 }
 
                 for (const symbol of symbols) {
-                    if (symbol.signature) {
-                        diagnostics.push(...this.signatureLinter.analyseSymbol(quest, symbol));
+                    if (symbol.signature !== undefined) {
+                        diagnostics.push(...this.signatureLinter.analyseSignature(quest, symbol));
                     }
                 }
             } else {
-                if (symbols.signature) {
-                    diagnostics.push(...this.signatureLinter.analyseSymbol(quest, symbols));
+                if (symbols.signature !== undefined) {
+                    diagnostics.push(...this.signatureLinter.analyseSignature(quest, symbols));
                 }
             }
 
@@ -230,7 +230,7 @@ export class QuestLinter {
         const hintTaskActivationForm: boolean = getOptions()['diagnostics']['hintTaskActivationForm'];
         for (const action of quest.qbn.iterateActions()) {
             if (action.info.isObsolete()) {
-                diagnostics.push(Informations.obsoleteAction(action.getRange(), action.getFullName()));
+                diagnostics.push(Informations.obsoleteAction(action.blockRange, action.getFullName()));
             }
             
             if (hintTaskActivationForm) {
@@ -255,7 +255,7 @@ export class QuestLinter {
                 }
             }
 
-            diagnostics.push(...this.signatureLinter.analyseAction(quest, action));
+            diagnostics.push(...this.signatureLinter.analyseSignature(quest, action));
         }
 
         this.failedParse(quest.qbn, diagnostics);

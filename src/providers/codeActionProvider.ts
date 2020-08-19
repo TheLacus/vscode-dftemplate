@@ -103,7 +103,7 @@ export class TemplateCodeActionProvider implements vscode.CodeActionProvider {
                     }
                     break;
                 case DiagnosticCode.UndefinedStaticMessage:
-                    const message = quest.qrc.getMessage(diagnostic.range, this.data.tables);
+                    const message = quest.qrc.getMessageFrom(diagnostic.range);
                     if (message && message.alias) {
                         const aliasRange = wordRange(document.lineAt(diagnostic.range.start.line), message.alias);
                         for (const [name, id] of this.data.tables.staticMessagesTable.messages) {
@@ -117,7 +117,7 @@ export class TemplateCodeActionProvider implements vscode.CodeActionProvider {
                     }
                     break;
                 case DiagnosticCode.UndefinedMessage:
-                    const messageParameter = quest.qbn.getParameter(diagnostic.range);
+                    const messageParameter = quest.qbn.getParameterFrom(diagnostic.range);
                     if (messageParameter) {
                         let messages: string[] = [];
                         if (messageParameter.type !== ParameterTypes.messageName) {
@@ -140,7 +140,7 @@ export class TemplateCodeActionProvider implements vscode.CodeActionProvider {
                     }
                     break;
                 case DiagnosticCode.UndefinedSymbol:
-                    const symbolParameter = quest.qbn.getParameter(diagnostic.range);
+                    const symbolParameter = quest.qbn.getParameterFrom(diagnostic.range);
                     if (symbolParameter) {
                         const symbolNames = Array.from(quest.qbn.iterateSymbols())
                             .filter(x => x.type === symbols.symbolPlaceholderToType(symbolParameter.type))
@@ -179,7 +179,7 @@ export class TemplateCodeActionProvider implements vscode.CodeActionProvider {
                     }
                     break;
                 case DiagnosticCode.UndefinedAttribute:
-                    const parameter = quest.qbn.getParameter(diagnostic.range);
+                    const parameter = quest.qbn.getParameterFrom(diagnostic.range);
                     if (parameter) {
                         const values = this.data.tables.getValues(parameter.type);
                         if (values) {
@@ -264,7 +264,7 @@ export class TemplateCodeActionProvider implements vscode.CodeActionProvider {
                     actions.push(action);
                     break;
                 case DiagnosticCode.ConvertTaskToVariable:
-                    const task = quest.qbn.getTask(diagnostic.range);
+                    const task = quest.qbn.getTaskFrom(diagnostic.range);
                     if (task) {
                         action = new CodeAction('Convert to variable', CodeActionKind.QuickFix);
                         action.edit = new WorkspaceEdit();

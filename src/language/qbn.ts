@@ -6,8 +6,8 @@
 
 import * as parser from '../parser';
 import { TextLine, Range } from 'vscode';
-import { first } from '../extension';
-import { QuestParseContext, QuestBlock, QuestBlockKind, Symbol, Task, Action, Parameter } from './common';
+import { Symbol, Task, Action, Parameter } from './common';
+import { QuestBlock, QuestBlockKind, QuestParseContext } from "./questBlock";
 
 /**
  * Quest resources and operation: the quest block that holds resources definition and tasks.
@@ -103,41 +103,43 @@ export class Qbn extends QuestBlock {
 
     /**
      * Gets a symbol from any of its variations.
-     * @param symbol Any variation of a symbol.
+     * @param name Any variation of a symbol.
      */
-    public getSymbol(symbol: string): Symbol | undefined {
-        return Qbn.getMapItem(this.symbols, parser.symbols.getBaseSymbol(symbol));
+    public getSymbol(name: string): Symbol | undefined {
+        return Qbn.getMapItem(this.symbols, parser.symbols.getBaseSymbol(name));
+    }
+
+    /**
+     * Gets a symbol from its range.
+     * @param range The range of a symbol.
+     */
+    public getSymbolFrom(range: Range): Symbol | undefined {
+        return Qbn.getResourceFrom(this.iterateSymbols(), range);
     }
 
     /**
      * Gets a task.
-     * @param task The name of a task or its range.
+     * @param name The name of a task or its range.
      */
-    public getTask(task: string | Range): Task | undefined {
-        return task instanceof Range ?
-            first(this.iterateTasks(), x => x.range.isEqual(task) || x.blockRange.isEqual(task)) :
-            Qbn.getMapItem(this.tasks, task);
+    public getTask(name: string): Task | undefined {
+        return Qbn.getMapItem(this.tasks, name);
     }
 
     /**
-     * Gets an action.
-     * @param range A range in this QBN block.
+     * Gets a task from its range.
+     * @param range The range of a task.
      */
-    public getAction(range: Range): Action | undefined {
-        return first(this.iterateActions(), x => x.range.isEqual(range));
+    public getTaskFrom(range: Range): Task | undefined {
+        return Qbn.getResourceFrom(this.iterateTasks(), range);
     }
 
     /**
      * Gets a parameter of a symbol definition or an action.
      * @param range The range of the parameter in the document.
      */
-    public getParameter(range: Range): Parameter | undefined {
-        const invocation = first(this.iterateSymbols(), x => x.blockRange.contains(range)) ||
-            first(this.iterateActions(), x => x.getRange().contains(range));
-        if (invocation && invocation.signature) {
-            const value = invocation.line.text.substring(range.start.character, range.end.character);
-            return invocation.signature.find(x => x.value === value);
-        }
+    public getParameterFrom(range: Range): Parameter | undefined {
+        return Qbn.getResourceContaining(this.iterateSymbols(), range)?.getParameterFrom(range)
+            ?? Qbn.getResourceContaining(this.iterateActions(), range)?.getParameterFrom(range);
     }
 
     private static pushMapItem<T>(items: Map<string, T | T[]>, key: string, item: T) {

@@ -5,7 +5,8 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import { QuestBlock, QuestBlockKind, Directive, QuestParseContext } from './common';
+import { Directive } from './common';
+import { QuestBlock, QuestBlockKind, QuestParseContext } from "./questBlock";
 
 /**
  * The first block of a quest.

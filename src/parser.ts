@@ -51,31 +51,6 @@ export function subRange(range: vscode.Range, text: string, subString: string): 
 }
 
 /**
- * Finds the char index of a word in a string.
- * For example wordIndex 2 in `give item _note_ to _vampleader_` is 5.
- */
-export function findWordPosition(text: string, wordIndex: number): number {
-    let insideWord = false;
-    for (let i = 0; i < text.length; i++) {
-        if (!/\s/.test(text[i])) {
-            if (!insideWord) {
-                if (wordIndex-- === 0) {
-                    return i;
-                }
-                insideWord = true;
-            }
-        }
-        else {
-            if (insideWord) {
-                insideWord = false;
-            }
-        }
-    }
-
-    return 0;
-}
-
-/**
  * Checks if a line is empty or a comment.
  * @param text A line of a quest.
  */
@@ -127,26 +102,33 @@ export function trimRange(line: vscode.TextLine): vscode.Range {
 export namespace messages {
 
     /**
-     * Attempts to parse a message definition from the given text line.
-     * @param text A text line.
-     * @returns The id of the message if parse operation was successful, `undefined` otherwise.
+     * The result of a message parse operation.
      */
-    export function parseMessage(text: string): number | undefined {
-        const results = text.match(/^\s*Message:\s+([0-9]+)/);
-        if (results) {
-            return Number(results[1]);
-        }
+    export interface MessageParseResult {
+        
+        /**
+         * The numeric id of this message.
+         */
+        readonly id: string;
+        
+        /**
+         * An optional text alias.
+         */
+        readonly alias: string | undefined;
     }
 
     /**
-     * Attempts to parse a static message definition from the given text line.
+     * Attempts to parse a message definition from the given text line.
      * @param text A text line.
-     * @returns The id and name of the static message if parse operation was successful, `undefined` otherwise.
+     * @returns The parsed message definition if parse operation was successful, `undefined` otherwise.
      */
-    export function parseStaticMessage(text: string): { id: number, name: string } | undefined {
-        const results = text.match(/^\s*(.*):\s+\[\s*([0-9]+)\s*\]\s*$/);
-        if (results) {
-            return { id: Number(results[2]), name: results[1] };
+    export function parseMessage(text: string): MessageParseResult | undefined {
+        const results = text.match(/^\s*(?:Message:\s*(?<id>[0-9]+)|(?<alias>[A-Za-z]+)\s*:\s*\[\s*(?<staticId>[0-9]+)\s*\])/);
+        if (results !== null && results.groups !== undefined) {
+            return {
+                id: results.groups['id'] ?? results.groups['staticId'],
+                alias: results.groups['alias']
+            };
         }
     }
 
@@ -219,14 +201,33 @@ export namespace messages {
 export namespace symbols {
 
     /**
-     * Attempts to parse a symbol definition from the given text line.
-     * @param text A text line.
-     * @returns The name of the symbol if parse operation was successful, `undefined` otherwise.
+     * The result of a symbol parse operation.
      */
-    export function parseSymbol(text: string): string | undefined {
-        const results = text.match(/^\s*(?:Person|Place|Item|Foe|Clock)\s*([a-zA-Z0-9._]+)/);
-        if (results) {
-            return results[1];
+    export interface SymbolParseResult {
+
+        /**
+         * The type of symbol: `Person`, `Place`, `Item`, `Foe` or `Clock`.
+         */
+        readonly type: string;
+
+        /**
+         * The name of this symbol (`_symbol_`).
+         */
+        readonly name: string;
+    }
+
+    /**
+     * Attempts to parse a symbol definition from a line of text.
+     * @param text A line of text.
+     * @returns Parse result if parse operation was successful, `undefined` otherwise.
+     */
+    export function parseSymbol(text: string): SymbolParseResult | undefined {
+        const results = text.match(/^\s*(?<type>Person|Place|Item|Foe|Clock)\s(?<name>[a-zA-Z0-9._]+)\b/);
+        if (results !== null && results.groups !== undefined) {
+            return {
+                type: results.groups['type'],
+                name: results.groups['name']
+            };
         }
     }
 
@@ -321,9 +322,9 @@ export namespace tasks {
     }
 
     /**
-     * The definition of a task.
+     * The result of a task parse operation.
      */
-    export interface TaskDefinition {
+    export interface TaskParseResult {
 
         /**
          * The symbol that allow to reference this task.
@@ -348,7 +349,7 @@ export namespace tasks {
      * @param globalVars Known global variables.
      * @returns The name and type of the task if parse operation was successful, `undefined` otherwise.
      */
-    export function parseTask(text: string, globalVars: Map<string, number>): TaskDefinition | undefined {
+    export function parseTask(text: string, globalVars: Map<string, number>): TaskParseResult | undefined {
         let results = text.match(/^\s*([a-zA-Z0-9\._-]+)\s*task:/);
         if (results !== null) {
             return { symbol: results[1], type: TaskType.Standard };
