@@ -1,5 +1,11 @@
 # Change Log
 
+## Unreleased
+
+### Improved
+
+- Improved presentation of code actions for symbol variations inside QRC messages.
+
 ## 0.16.0
 
 ### Improved

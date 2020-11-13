@@ -6,7 +6,7 @@
 
 import * as vscode from 'vscode';
 import * as parser from '../parser';
-import { CodeAction, CodeActionKind, DiagnosticSeverity, WorkspaceEdit, ExtensionContext } from 'vscode';
+import { CodeAction, CodeActionKind, WorkspaceEdit, ExtensionContext } from 'vscode';
 import { getOptions, first, where } from '../extension';
 import { StaticData } from '../language/static/staticData';
 import { ParameterTypes } from '../language/static/parameterTypes';
@@ -17,6 +17,7 @@ import { DiagnosticCode } from '../diagnostics/common';
 import { symbols, wordRange } from '../parser';
 import { TemplateReferenceProvider } from './referenceProvider';
 import { TemplateRenameProvider } from './renameProvider';
+import { Quest } from '../language/quest';
 
 export class TemplateCodeActionProvider implements vscode.CodeActionProvider {
 
@@ -202,20 +203,6 @@ export class TemplateCodeActionProvider implements vscode.CodeActionProvider {
                     action.edit.insert(document.uri, clockTaskPos, `\n\nvariable ${clockName}`);
                     actions.push(action);
                     break;
-                case DiagnosticCode.IncorrectSymbolVariation:
-                    const currentSymbol = document.getText(diagnostic.range);
-                    const symbolDefinition = quest.qbn.getSymbol(currentSymbol);
-                    if (symbolDefinition) {
-                        this.data.language.getSymbolVariations(currentSymbol, symbolDefinition.type).forEach(newSymbol => {
-                            const title = `Change ${currentSymbol} to ${newSymbol.word} (${newSymbol.description})`;
-                            const action = new vscode.CodeAction(title);
-                            action.kind = diagnostic.severity === DiagnosticSeverity.Hint ? CodeActionKind.Empty : CodeActionKind.QuickFix;
-                            action.edit = new vscode.WorkspaceEdit();
-                            action.edit.replace(document.uri, diagnostic.range, newSymbol.word);
-                            actions.push(action);
-                        });
-                    }
-                    break;
                 case DiagnosticCode.MissingPositiveSign:
                     action = new vscode.CodeAction(`Change to +${document.getText(diagnostic.range)}`, vscode.CodeActionKind.QuickFix);
                     action.edit = new vscode.WorkspaceEdit();
@@ -285,26 +272,9 @@ export class TemplateCodeActionProvider implements vscode.CodeActionProvider {
             }
         }
 
-        const qrcRange = quest.qrc.range;
-        if (qrcRange !== undefined && range.intersection(qrcRange.with(undefined, new vscode.Position(qrcRange.start.line + 1, 0))) !== undefined) {
-            const action = new CodeAction('Generate messages', CodeActionKind.RefactorRewrite);      
-            action.command = {
-                title: action.title,
-                command: 'dftemplate.generateMessages'
-            };
-            actions.push(action);
-        }
-
-        for (const message of where(quest.qrc.messages, x => x.aliasRange !== undefined && x.aliasRange.intersection(range) !== undefined)) {
-            for (const [alias, id] of this.data.tables.staticMessagesTable.messages) {
-                if (message.id === id && message.alias !== alias) {
-                    const action = new CodeAction(`Change to ${alias}`, CodeActionKind.RefactorRewrite);
-                    action.edit = new WorkspaceEdit();
-                    action.edit.replace(document.uri, message.aliasRange!, alias);
-                    actions.push(action);
-                }
-            }
-        }
+        if (quest.qrc.found === true) {
+            actions.push(...await this.provideQrcCodeActions(document, range, context, quest));
+        }    
 
         const qbnRange = quest.qbn.range;
         if (qbnRange !== undefined && range.intersection(qbnRange.with(undefined, new vscode.Position(qbnRange.start.line + 1, 0))) !== undefined) {
@@ -341,6 +311,65 @@ export class TemplateCodeActionProvider implements vscode.CodeActionProvider {
                         arguments: [task, range]
                     };
                     actions.push(action);
+                }
+            }
+        }
+
+        return actions;
+    }
+
+    private async provideQrcCodeActions(document: vscode.TextDocument, range: vscode.Range, context: vscode.CodeActionContext, quest: Quest):
+        Promise<vscode.CodeAction[]> {
+
+        const actions: vscode.CodeAction[] = [];
+        
+        const qrcRange = quest.qrc.range;
+        if (qrcRange !== undefined) {
+            if (range.intersection(qrcRange.with(undefined, new vscode.Position(qrcRange.start.line + 1, 0))) !== undefined) {
+                const action = new CodeAction('Generate messages', CodeActionKind.RefactorRewrite);
+                action.command = {
+                    title: action.title,
+                    command: 'dftemplate.generateMessages'
+                };
+                actions.push(action);
+            }
+
+            if (qrcRange.contains(range)) {
+                for (const message of quest.qrc.messages) {
+                    if (message.blockRange.contains(range)) {
+                        for (const occurrence of message.symbolOccurrences) {
+                            if (occurrence.range.contains(range)) {
+                                const symbol = quest.qbn.getSymbol(occurrence.symbol);
+                                if (symbol !== undefined) {
+                                    for (const variation of this.data.language.getSymbolVariations(occurrence.symbol, symbol.type)) {
+                                        const title = `Change ${occurrence.symbol} to ${variation.word} (${variation.description})`;
+                                        const action = new vscode.CodeAction(title);
+                                        const diagnostic = context.diagnostics.find(x => x.code === DiagnosticCode.IncorrectSymbolVariation && x.range.isEqual(occurrence.range));
+                                        if (diagnostic !== undefined) {
+                                            action.kind = CodeActionKind.QuickFix;
+                                            action.diagnostics = [diagnostic];
+                                        } else {
+                                            action.kind = CodeActionKind.RefactorRewrite;
+                                        }
+                                        action.edit = new vscode.WorkspaceEdit();
+                                        action.edit.replace(document.uri, occurrence.range, variation.word);
+                                        actions.push(action);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (const message of where(quest.qrc.messages, x => x.aliasRange !== undefined && x.aliasRange.intersection(range) !== undefined)) {
+                for (const [alias, id] of this.data.tables.staticMessagesTable.messages) {
+                    if (message.id === id && message.alias !== alias) {
+                        const action = new CodeAction(`Change to ${alias}`, CodeActionKind.RefactorRewrite);
+                        action.edit = new WorkspaceEdit();
+                        action.edit.replace(document.uri, message.aliasRange!, alias);
+                        actions.push(action);
+                    }
                 }
             }
         }

@@ -8,7 +8,6 @@ import * as vscode from 'vscode';
 import * as parser from '../parser';
 import { Diagnostic } from "vscode";
 import { first, getOptions } from '../extension';
-import { wordRange } from '../parser';
 import { SymbolType } from '../language/static/common';
 import { LanguageData } from '../language/static/languageData';
 import { Modules } from '../language/static/modules';
@@ -94,24 +93,19 @@ export class QuestLinter {
                     }
                 }
             }
-        }
 
-        // Symbols inside message blocks
-        for (const line of quest.qrc.iterateMessageLines()) {
-            const symbols = parser.symbols.findAllSymbolsInALine(line.text);
-            if (symbols) {
-                for (const symbol of symbols) {
-                    let symbolDefinition = quest.qbn.symbols.get(parser.symbols.getBaseSymbol(symbol));
-                    if (!symbolDefinition) {
-                        diagnostics.push(Errors.undefinedSymbol(wordRange(line, symbol), symbol));
-                    } else {
-                        if (Array.isArray(symbolDefinition)) {
-                            symbolDefinition = symbolDefinition[0];
-                        }
+            // Symbols inside message blocks
+            for (const occurrence of message.symbolOccurrences) {
+                let symbolDefinition = quest.qbn.symbols.get(occurrence.baseSymbol);
+                if (!symbolDefinition) {
+                    diagnostics.push(Errors.undefinedSymbol(occurrence.range, occurrence.symbol));
+                } else {
+                    if (Array.isArray(symbolDefinition)) {
+                        symbolDefinition = symbolDefinition[0];
+                    }
 
-                        diagnostics.push(!this.data.language.isSymbolVariationDefined(symbol, symbolDefinition.type) ?
-                            Warnings.incorrectSymbolVariation(wordRange(line, symbol), symbol, symbolDefinition.type) :
-                            Hints.changeSymbolVariation(wordRange(line, symbol)));
+                    if (this.data.language.isSymbolVariationDefined(occurrence.symbol, symbolDefinition.type) === false) {
+                        diagnostics.push(Warnings.incorrectSymbolVariation(occurrence.range, occurrence.symbol, symbolDefinition.type));
                     }
                 }
             }

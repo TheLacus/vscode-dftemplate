@@ -231,14 +231,6 @@ export namespace symbols {
     }
 
     /**
-     * Finds all symbols with any accepted prefix.
-     * @param line A string to seek symbols within.
-     */
-    export function findAllSymbolsInALine(line: string): RegExpMatchArray | null {
-        return line.match(/(_{1,3}|={1,2})[a-zA-Z0-9_.-]+_/g);
-    }
-
-    /**
      * Remove prefixes from a derived symbol. 
      * @param derived An occurrence of a symbol.
      * @example 

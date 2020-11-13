@@ -431,9 +431,32 @@ export interface ContextMacro {
 }
 
 /**
+ * An occurrence of a symbol in a message block.
+ */
+export interface SymbolOccurrence {
+
+    /**
+     * The used variant of the symbol with prefix and suffix; for example `___symbol_` or `=symbol_`.
+     */
+    readonly symbol: string;
+
+    /**
+     * The symbol with standard prefix and suffix, if any; for example `_symbol_` or `symbol`.
+     */
+    readonly baseSymbol: string;
+
+    /**
+     * The range of the symbol inside a message block.
+     */
+    readonly range: Range;
+}
+
+/**
  * A text block with a serial number. Can be used for popups, journal, letters, and rumours.
  */
 export class Message implements QuestResource {
+
+    private _symbolOccurrences?: SymbolOccurrence[];
 
     /**
      * The block of text associated to this message.
@@ -448,6 +471,32 @@ export class Message implements QuestResource {
         return this.textBlock.length > 0 ?
             lineRange.union(this.textBlock[this.textBlock.length - 1].range) :
             lineRange;
+    }
+
+    /**
+     * All occurrences of symbols inside this message block.
+     */
+    public get symbolOccurrences(): SymbolOccurrence[] {
+        let occurrences: SymbolOccurrence[] | undefined = this._symbolOccurrences;
+        if (occurrences === undefined) {
+            occurrences = [];
+
+            for (const line of this.textBlock) {
+                const regex = /(_{1,3}|={1,2})[a-zA-Z0-9_.-]+_/g;
+                let result: RegExpExecArray | null;
+                while (result = regex.exec(line.text)) {
+                    occurrences.push({
+                        symbol: result[0],
+                        baseSymbol: parser.symbols.getBaseSymbol(result[0]),
+                        range: new Range(line.lineNumber, result.index, line.lineNumber, result.index + result[0].length)
+                    });
+                }
+            }
+
+            this._symbolOccurrences = occurrences;
+        }
+
+        return occurrences;
     }
 
     private constructor(
