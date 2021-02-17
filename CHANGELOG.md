@@ -1,5 +1,11 @@
 # Change Log
 
+## Unreleased
+
+### Improved
+
+- Updated list of actions and conditions.
+
 ## 0.16.0
 
 ### Improved
