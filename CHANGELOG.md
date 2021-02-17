@@ -1,5 +1,11 @@
 # Change Log
 
+## Unreleased
+
+### Fixed
+
+- Argument of `journal note id` is now correctly resolved as a message id.
+
 ## 0.16.0
 
 ### Improved
