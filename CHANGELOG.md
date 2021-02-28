@@ -5,6 +5,7 @@
 ### Improved
 
 - Updated list of actions and conditions.
+- Updated list of macros.
 
 ## 0.16.0
 
