@@ -1,5 +1,11 @@
 # Change Log
 
+## Unreleased
+
+### Improved
+
+- Updated list of macros.
+
 ## 0.16.0
 
 ### Improved
