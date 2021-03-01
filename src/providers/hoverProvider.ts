@@ -105,9 +105,19 @@ export class TemplateHoverProvider implements HoverProvider {
                         if (otherOverloads > 0) {
                             signature += TemplateHoverProvider.makeOverloadsCountInfo(otherOverloads);
                         }
+
+                        let prettySignature: string = Modules.prettySignature(signature);
+                        if (actionInfo.details.isTrigger === true) {
+                            if (actionInfo.details.isAlwaysOnTrigger === true) {
+                                prettySignature = 'trigger<set|unset> ' + prettySignature;
+                            } else {
+                                prettySignature = 'trigger<set> ' + prettySignature;
+                            }
+                        }
+                        
                         item = {
                             category: QuestResourceCategory[actionInfo.category].toLowerCase(),
-                            signature: Modules.prettySignature(signature),
+                            signature: prettySignature,
                             summary: actionInfo.getSummary()
                         };
                     }

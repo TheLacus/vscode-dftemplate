@@ -425,7 +425,7 @@
             <array>
                 <dict>
                     <key>match</key>
-                    <string>^\((condition|action)\)\s(\w+)\s-></string>
+                    <string>^\((condition|action)\)(?:\s(trigger)&lt;(set)(?:\|(unset))?&gt;)?\s(\w+)\s-></string>
                     <key>captures</key>
                     <dict>
                         <key>1</key>
@@ -434,6 +434,21 @@
                             <string>storage.type.dftemplate</string>
                         </dict>
                         <key>2</key>
+                        <dict>
+                            <key>name</key>
+                            <string>keyword.control.flow.trigger.dftemplate</string>
+                        </dict>
+                        <key>3</key>
+                        <dict>
+                            <key>name</key>
+                            <string>constant.language.set.dftemplate</string>
+                        </dict>
+                        <key>4</key>
+                        <dict>
+                            <key>name</key>
+                            <string>constant.language.unset.dftemplate</string>
+                        </dict>
+                        <key>5</key>
                         <dict>
                             <key>name</key>
                             <string>support.type.dftemplate</string>

@@ -57,6 +57,14 @@
                         "minItems": 1
                     }
                 },
+                "isTrigger": {
+                    "type" : "boolean",
+                    "default": true
+                },
+                "isAlwaysOnTrigger": {
+                    "type" : "boolean",
+                    "default": true
+                },
                 "isObsolete": {
                     "anyOf": [
                         {

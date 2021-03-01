@@ -16,6 +16,8 @@ export function tryParseWhenTaskCondition(text: string): ActionInfo | undefined 
         const details: ActionDetails = {
             summary: 'A special condition that provides a boolean expression; checks set/unset state of tasks.',
             overloads: [makeSignature(text)],
+            isTrigger: true,
+            isAlwaysOnTrigger: true,
             sourceName: 'WhenTask'
         };
         return new ActionInfo('Daggerfall', QuestResourceCategory.Condition, details);

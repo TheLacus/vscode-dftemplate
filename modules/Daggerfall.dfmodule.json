@@ -17,6 +17,7 @@
                 "clicked item ${1:_item_}",
                 "clicked item ${1:_item_} say ${2:message}"
             ],
+            "isTrigger": true,
             "sourceName": "ClickedItem"
         },
         {
@@ -30,6 +31,7 @@
                 "clicked npc ${1:_person_} say ${2:message}",
                 "clicked ${1:_person_} and at least ${2:nn} gold otherwise do ${3:task}"
             ],
+            "isTrigger": true,
             "sourceName": "ClickedNpc"
         },
         {
@@ -37,6 +39,8 @@
             "overloads": [
                 "daily from ${1:hh}:${2:mm} to ${3:hh}:${4:mm}"
             ],
+            "isTrigger": true,
+            "isAlwaysOnTrigger": true,
             "sourceName": "DailyFrom"
         },
         {
@@ -45,6 +49,8 @@
                 "dropped ${1:_item_} at ${2:_place_}",
                 "dropped ${1:_item_} at ${2:_place_} saying ${3:messageID}"
             ],
+            "isTrigger": true,
+            "isAlwaysOnTrigger": true,
             "sourceName": "DroppedItemAtPlace"
         },
         {
@@ -60,6 +66,7 @@
                 "injured ${1:_foe_}",
                 "injured ${1:_foe_} saying ${2:messageID}"
             ],
+            "isTrigger": true,
             "sourceName": "InjuredFoe"
         },
         {
@@ -73,6 +80,7 @@
                 "killed ${1:nn} ${2:_foe_}",
                 "killed ${1:nn} ${2:_foe_} saying ${3:messageID}"
             ],
+            "isTrigger": true,
             "sourceName": "KilledFoe"
         },
         {
@@ -80,6 +88,7 @@
             "overloads": [
                 "level ${1:nn} completed"
             ],
+            "isTrigger": true,
             "sourceName": "LevelCompleted"
         },
         {
@@ -106,6 +115,7 @@
                 "toting ${1:_item_} and ${2:_person_} clicked",
                 "toting ${1:_item_} and ${2:_person_} clicked saying ${3:message}"
             ],
+            "isTrigger": true,
             "sourceName": "TotingItemAndClickedNpc"
         },
         {
@@ -124,6 +134,8 @@
             "overloads": [
                 "when ${1:faction} is available"
             ],
+            "isTrigger": true,
+            "isAlwaysOnTrigger": true,
             "sourceName": "WhenNpcIsAvailable"
         },
         {
@@ -131,6 +143,8 @@
             "overloads": [
                 "when repute with ${1:faction} is at least ${2:nn}"
             ],
+            "isTrigger": true,
+            "isAlwaysOnTrigger": true,
             "sourceName": "WhenReputeWith"
         }
     ],

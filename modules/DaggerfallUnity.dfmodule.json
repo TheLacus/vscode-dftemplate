@@ -19,6 +19,7 @@
                 "clicked foe ${1:_foe_} say ${2:message}",
                 "clicked ${1:_foe_} and at least ${2:nn} gold otherwise do ${3:task}"
             ],
+            "isTrigger": true,
             "sourceName": "ClickedFoe"
         },
         {
@@ -33,6 +34,7 @@
             "overloads": [
                 "when attribute ${1:attributeName} is at least ${2:nn}"
             ],
+            "isTrigger": true,
             "sourceName": "WhenAttributeLevel"
         },
         {
@@ -40,6 +42,7 @@
             "overloads": [
                 "when pc ${1|enters,exits|} ${2:locationType}"
             ],
+            "isTrigger": true,
             "sourceName": "WhenPcEntersExits"
         },
         {
@@ -47,6 +50,7 @@
             "overloads": [
                 "when skill ${1:skillName} is at least ${2:nn}"
             ],
+            "isTrigger": true,
             "sourceName": "WhenSkillLevel"
         }
     ],

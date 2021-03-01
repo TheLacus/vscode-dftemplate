@@ -180,6 +180,10 @@ export interface ActionDetails {
      */
     readonly overloads: string[];
 
+    readonly isTrigger?: boolean;
+
+    readonly isAlwaysOnTrigger?: boolean;
+
     /**
      * If true this action should be removed or replaced.
      */
